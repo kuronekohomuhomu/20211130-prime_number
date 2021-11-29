@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>素数抽出(ウラムのらせん)</title>
+<script>
+let canvas, context;
+let pNumber = new Array();
+const masu = new Array();
+const numbers = new Array();
+let n, x, y, index = 0;
+const dir = [[0,1],[1,0],[0,-1],[-1,0]];
+const w = 40, r = 9;
+
+const init = () => {
+    // キャンバス
+    canvas = document.getElementById("image");
+    context = canvas.getContext("2d");
+    context.font = "8px sans-serif";
+    context.textAlign = "center";
+    context.textBaseline = "middle";
+    // マスの初期化
+    initNumber();
+}
+
+const initNumber = () => {
+    // マスの初期化
+    for (let i = 0; i <= w; i++) {
+        masu[i] = new Array();
+        for (let j = 0; j <= w; j++) {
+            masu[i][j] = 0;
+        }
+    }
+    document.getElementById("pNum").innerText = "---";
+    disabledButtons(true, true, true);
+    [n, x, y, index] = [1, 19, 20, 0];
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    setNumber();
+}
+
+const setNumber = () => {
+    // マスに数値をセット
+    masu[x][y] = n;
+    numbers[n] = {"x":x, "y":y, "e":true};
+    // 円、数字の描画
+    drawNumber(n, x, y);
+    // 次のマスへ
+    let nextIndex = index + 1;
+    if (nextIndex == 4) nextIndex = 0;
+    const [tx, ty] = [x + dir[nextIndex][0], y + dir[nextIndex][1]];
+    if (masu[tx][ty] == 0) index = nextIndex;
+    [x, y] = [x + dir[index][0], y + dir[index][1]];
+    n++;
+    if (n <= w**2) {
+        window.requestAnimationFrame(setNumber);
+    } else {
+        // 抽出ボタンの有効化
+        disabledButtons(true, false, false);
+    }
+}
+
+const drawNumber = (n, x, y, type = "default") => {
+    // 円の描画
+    context.beginPath();
+    const [cx, cy] = [x*r*2+r, y*r*2+r];
+    context.arc(cx, cy, r, 0, Math.PI*2);
+    let [color1, color2, color3] = ["#CCFFFF", "#3366FF", "#000000"];
+    if (type == "p") {
+        [color1, color2, color3] = ["#336699", "#3366FF", "FFFFFF"];
+    } else if (type == "np") {
+        [color1, color2, color3] = ["#FFFFFF", "#CCFFFF", null];
+    }
+    context.fillStyle = color1;
+    context.fill();
+    context.strokeStyle = color2;
+    context.stroke();
+    // 数字の描画
+    if (color3 != null) {
+        context.fillStyle = color3;
+        context.fillText(n, cx, cy);
+    }
+}
+
+const extract = eType => {
+    // 素数の抽出開始
+    disabledButtons(true, true, true);
+    pNumber = [];
+    n = 1;
+    if (eType == 1) {
+        extractPrimeNumber1();
+    } else {
+        // エラトステネスのふるい
+        numbers[1].e = false;
+        const [x, y] = [numbers[1].x, numbers[1].y];
+        drawNumber(1, x, y, "np");
+        extractPrimeNumber2();
+    }
+}
+
+const extractPrimeNumber1 = () => {
+    // 素数の判定
+    let check = true;
+    for (const p of pNumber) {
+        if (p**2 <= n) {
+            if (n%p == 0) {
+                check = false;
+                break;
+            }
+        } else {
+            break;
+        }
+    }
+    // 描画
+    const [x, y] = [numbers[n].x, numbers[n].y];
+    if ((check) && (n > 1)) {
+        // 素数
+        pNumber.push(n);
+        drawNumber(n, x, y, "p");
+    } else {
+        drawNumber(n, x, y, "np");
+    }
+    // 次の数へ
+    n++;
+    if (n <= w**2) {
+        window.requestAnimationFrame(extractPrimeNumber1);
+    } else {
+        // 終了
+        document.getElementById("pNum").innerText = pNumber.length;
+        disabledButtons(false, true, true);
+    }
+}
+
+const extractPrimeNumber2 = () => {
+    // 素数の判定(エラトステネスのふるい)
+    if (numbers[n].e) {
+        // 倍数の削除
+        for (let p = n**2; p <= w**2; p += n) {
+            numbers[p].e = false;
+            const [x, y] = [numbers[p].x, numbers[p].y];
+            drawNumber(p, x, y, "np");
+        }
+    }
+    // 次の数へ
+    n++;
+    if (n <= w) {
+        window.requestAnimationFrame(extractPrimeNumber2);
+    } else {
+        // 素数の描画
+        for (let i = 2; i < w**2; i++) {
+            if (numbers[i].e) {
+                pNumber.push(i);
+                const [x, y] = [numbers[i].x, numbers[i].y];
+                drawNumber(i, x, y, "p");
+            }
+        }
+        // 終了
+        document.getElementById("pNum").innerText = pNumber.length;
+        disabledButtons(false, true, true);
+    }
+}
+
+const disabledButtons = (reset, extract1, extract2) => {
+    // ボタンの無効化、有効化
+    document.getElementById("reset").disabled = reset;
+    document.getElementById("extract1").disabled = extract1;
+    document.getElementById("extract2").disabled = extract2;
+}
+</script>
+</head>
+<body onload="init()">
+<p>素数抽出(ウラムのらせん)</p>
+<input type="button" id="reset" value="リセット" onclick="initNumber()">
+<input type="button" id="extract1" value="抽出1" onclick="extract(1)">
+<input type="button" id="extract2" value="抽出2" onclick="extract(2)">
+素数の個数：<span id="pNum">---</span>
+<hr>
+<canvas id="image" width="720" height="720"></canvas>
+</body>
+</html>
